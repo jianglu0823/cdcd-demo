@@ -8,6 +8,8 @@ app/target/
 # Harbor installer 解压出来的一大堆东西,不该进仓库
 harbor/harbor/
 harbor/*.tgz
+# Harbor 运行时数据(data_volume)
+harbor/data/
 
 # 系统 / 编辑器
 .DS_Store
