@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cicd-demo
+  labels:
+    app: cicd-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cicd-demo
+  template:
+    metadata:
+      labels:
+        app: cicd-demo
+    spec:
+      # 从私有 Harbor 拉镜像需要凭据,由 scripts/30-registry-secret.sh 创建
+      imagePullSecrets:
+        - name: harbor-cred
+      containers:
+        - name: app
+          # 镜像 tag 由 Jenkins 在部署时用 `kubectl set image` 替换成 ${BUILD_NUMBER}。
+          # 这里的占位 tag 只在首次手动 apply 时用得到。
+          image: harbor.cicd.local/demo/app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          # 存活探针:挂了就重启。就绪探针:没就绪不接流量(滚动更新时避免打到没起好的 Pod)。
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

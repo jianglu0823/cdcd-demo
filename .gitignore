@@ -1,0 +1,13 @@
+# 构建产物
+app/target/
+**/*.class
+
+# 本地运行时生成(20-jenkins.sh 会写 kubeconfig 到这里)
+.jenkins/
+
+# Harbor installer 解压出来的一大堆东西,不该进仓库
+harbor/harbor/
+harbor/*.tgz
+
+# 系统 / 编辑器
+.DS_Store

@@ -1,0 +1,4 @@
+app/target/
+**/*.class
+.git
+.DS_Store
