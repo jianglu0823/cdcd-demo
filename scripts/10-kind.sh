@@ -7,7 +7,9 @@ set -euo pipefail
 
 CLUSTER=cicd
 NET=cicd-net
-HARBOR_HOST=harbor.cicd.local
+# 带 :80:containerd 按镜像引用的 host:port 精确匹配 certs.d 目录名,必须与
+# Jenkins push、deployment.yaml、registry-secret 里的地址完全一致。
+HARBOR_HOST=harbor.cicd.local:80
 
 # ---------- 1. 建集群(带端口映射 + containerd 信任 insecure registry) ----------
 if kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
@@ -38,6 +40,19 @@ if docker network inspect "$NET" | grep -q "\"$NODE\""; then
 else
   docker network connect "$NET" "$NODE"
   echo "已把 $NODE 接入 $NET"
+fi
+
+# ---------- 2b. 确保 Harbor 的 nginx 在 cicd-net 上有别名 harbor.cicd.local ----------
+# kind 内 containerd 要用域名访问 Harbor,靠 Docker 内嵌 DNS 解析到 nginx 容器。
+# nginx 容器名是 "nginx",必须加网络别名 harbor.cicd.local 才能被解析到。
+# 注意:动态 connect 后需重启 nginx 才能恢复宿主端口映射(Docker Desktop 已知行为)。
+if ! docker inspect nginx --format '{{range .NetworkSettings.Networks.cicd-net.Aliases}}{{.}} {{end}}' 2>/dev/null | grep -q "harbor.cicd.local"; then
+  docker network disconnect "$NET" nginx 2>/dev/null || true
+  docker network connect --alias harbor.cicd.local "$NET" nginx
+  docker restart nginx >/dev/null
+  echo "已为 nginx 添加 cicd-net 别名 harbor.cicd.local 并重启"
+else
+  echo "nginx 已有别名 harbor.cicd.local"
 fi
 
 # ---------- 3. 在节点内写 containerd 的 hosts.toml,指向 Harbor 容器,声明 HTTP ----------

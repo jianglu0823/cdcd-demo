@@ -73,6 +73,9 @@ docker push harbor.cicd.local/demo/hello:test
 
 ## 常见问题
 
-- **push 报 http: server gave HTTP response to HTTPS client** → Docker 没配 insecure-registries,或没重启 Docker。
-- **kind 里 Pod ImagePullBackOff** → 见 `scripts/10-kind.sh` 写的 hosts.toml;确认 kind 节点已 `docker network connect cicd-net`。
-- **harbor.cicd.local 解析不了** → 宿主看 /etc/hosts;容器内看是否同在 cicd-net。
+- **push 报 dialing harbor.cicd.local:443 / connection refused** → 不带端口时 docker 强制走 HTTPS(443),而 Harbor 只听 80。**镜像地址必须带 `:80`**,例如 `harbor.cicd.local:80/demo/app:1`。本项目的 Jenkinsfile / k8s/deployment.yaml / scripts 已统一带 `:80`,四处地址必须完全一致。
+- **push 报 http: server gave HTTP response to HTTPS client** → Docker 没配 insecure-registries,或改完没重启 Docker(daemon 需重启才对 push 生效)。
+- **Harbor 首页突然连不上(HTTP 000)** → 给 nginx 动态 `network connect` 后 Docker Desktop 端口映射会失灵,`docker restart nginx` 即可恢复。
+- **Docker 重启后 Harbor 容器 Exited(128)** → 进 `harbor/harbor/` 执行 `docker compose up -d` 重新拉起。
+- **kind 里 Pod ImagePullBackOff** → 见 `scripts/10-kind.sh` 写的 hosts.toml(目录名带 `:80`);确认 kind 节点已接入 cicd-net,且 nginx 有别名 `harbor.cicd.local`。
+- **harbor.cicd.local 解析不了** → 宿主看 /etc/hosts;容器内需 nginx 在 cicd-net 上有网络别名 `harbor.cicd.local`(10-kind.sh 会自动加)。

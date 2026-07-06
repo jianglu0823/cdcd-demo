@@ -5,7 +5,8 @@
 # 用法:HARBOR_USER=admin HARBOR_PASS=Harbor12345 ./scripts/30-registry-secret.sh
 set -euo pipefail
 
-HARBOR_HOST=harbor.cicd.local
+# 带 :80,必须与 deployment.yaml 的 image 地址一致,否则 K8s 拉镜像时匹配不到这条凭据。
+HARBOR_HOST=harbor.cicd.local:80
 HARBOR_USER="${HARBOR_USER:-admin}"
 HARBOR_PASS="${HARBOR_PASS:-Harbor12345}"   # Harbor 默认管理员密码,生产务必改掉
 

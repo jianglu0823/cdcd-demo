@@ -7,7 +7,9 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY    = 'harbor.cicd.local'
+        // 必须带 :80 显式走 HTTP。不带端口时 docker 会强制走 HTTPS(443),
+        // 而本地 Harbor 只监听 80,导致 push/pull 失败。
+        REGISTRY    = 'harbor.cicd.local:80'
         IMAGE       = "${REGISTRY}/demo/app"
         // 每次构建用 Jenkins 内置的自增编号做镜像 tag,天然唯一、可追溯到具体构建
         TAG         = "${env.BUILD_NUMBER}"

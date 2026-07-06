@@ -21,7 +21,9 @@ spec:
         - name: app
           # 镜像 tag 由 Jenkins 在部署时用 `kubectl set image` 替换成 ${BUILD_NUMBER}。
           # 这里的占位 tag 只在首次手动 apply 时用得到。
-          image: harbor.cicd.local/demo/app:latest
+          # 必须带 :80,与 Jenkins push 的地址一致;containerd 按 host:port 精确匹配
+          # /etc/containerd/certs.d 下的目录名,不带端口会走 HTTPS 拉取失败。
+          image: harbor.cicd.local:80/demo/app:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
