@@ -34,11 +34,14 @@ pipeline {
         stage('Build & Test') {
             steps {
                 // 用 maven 容器构建,避免 Jenkins 容器里再装 JDK/maven。
-                // -v $HOME/.m2 做依赖缓存,加速后续构建。
+                // 关键:docker.sock 指向宿主 daemon,-v "$WORKSPACE" 会被宿主解析,
+                // 而 workspace 实际在 jenkins_home 命名卷里,宿主没有该路径 -> 挂到空目录。
+                // 用 --volumes-from jenkins 复用 Jenkins 容器的全部挂载(含 jenkins_home,
+                // 路径一致),$WORKSPACE 才能正确解析。.m2 缓存同样落在该卷内,自动持久。
                 sh '''
                     docker run --rm \
-                      -v "$WORKSPACE":/src -w /src \
-                      -v "$HOME/.m2":/root/.m2 \
+                      --volumes-from jenkins \
+                      -w "$WORKSPACE" \
                       maven:3.9-eclipse-temurin-21 \
                       mvn -B -f app/pom.xml clean package
                 '''
