@@ -88,11 +88,15 @@ curl localhost:8080/         # 期望:hello v1 (from ...)
 
 ```bash
 ./scripts/00-network.sh                 # 建 cicd-net
-# 按 harbor/README.md 安装 Harbor、改 harbor.yml(HTTP + hostname)、建 demo project
+# 按 harbor/README.md 安装 Harbor、改 harbor.yml(HTTP + hostname + data_volume 指到 /Users 下)
+# 建 demo project(public)
 # 别忘:/etc/hosts 加 127.0.0.1 harbor.cicd.local
-#      Docker Engine 配 insecure-registries 后重启 Docker
-docker login harbor.cicd.local -u admin -p Harbor12345   # 验证登录成功
+#      Docker Engine 配 insecure-registries: ["harbor.cicd.local","harbor.cicd.local:80"] 后重启 Docker
+docker login harbor.cicd.local:80 -u admin -p Harbor12345   # 注意带 :80,验证登录成功
+./scripts/05-harbor-proxy.sh            # 起代理,让集群内也能用 :80 访问 Harbor
 ```
+
+> **为什么要带 `:80` 和代理**:Harbor 的 nginx 内部只监听 8080,宿主靠 80→8080 映射;不带端口时 docker 会强制走 HTTPS(443)导致失败。全链路镜像地址统一为 `harbor.cicd.local:80`;`05-harbor-proxy.sh` 起一个反代容器,让 kind 集群内也能用 `:80` 连到 Harbor。详见 harbor/README.md。
 
 ### 第 3 步:kind 集群 + 拉取凭据
 

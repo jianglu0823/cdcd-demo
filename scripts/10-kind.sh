@@ -42,18 +42,16 @@ else
   echo "已把 $NODE 接入 $NET"
 fi
 
-# ---------- 2b. 确保 Harbor 的 nginx 在 cicd-net 上有别名 harbor.cicd.local ----------
-# kind 内 containerd 要用域名访问 Harbor,靠 Docker 内嵌 DNS 解析到 nginx 容器。
-# nginx 容器名是 "nginx",必须加网络别名 harbor.cicd.local 才能被解析到。
-# 注意:动态 connect 后需重启 nginx 才能恢复宿主端口映射(Docker Desktop 已知行为)。
-if ! docker inspect nginx --format '{{range .NetworkSettings.Networks.cicd-net.Aliases}}{{.}} {{end}}' 2>/dev/null | grep -q "harbor.cicd.local"; then
-  docker network disconnect "$NET" nginx 2>/dev/null || true
-  docker network connect --alias harbor.cicd.local "$NET" nginx
-  docker restart nginx >/dev/null
-  echo "已为 nginx 添加 cicd-net 别名 harbor.cicd.local 并重启"
-else
-  echo "nginx 已有别名 harbor.cicd.local"
+# ---------- 2b. 校验 Harbor 代理已就绪(由 05-harbor-proxy.sh 启动) ----------
+# 为什么需要代理:Harbor 的 nginx 内部只 listen 8080,宿主靠 80->8080 映射对外;
+# 但 kind 容器间直连走的是容器真实端口,拿不到宿主映射,且直接给 nginx 加 cicd-net
+# 别名会破坏宿主端口转发(Docker Desktop 已知问题)。因此用独立 harbor-proxy 容器
+# 持有别名 harbor.cicd.local 并在 cicd-net 内 listen 80,转发到 nginx:8080。
+if ! docker ps --filter name=harbor-proxy --format '{{.Names}}' | grep -qx harbor-proxy; then
+  echo "❌ 未发现 harbor-proxy 容器,请先运行:./scripts/05-harbor-proxy.sh" >&2
+  exit 1
 fi
+echo "harbor-proxy 已就绪(cicd-net 内 harbor.cicd.local:80 → nginx:8080)"
 
 # ---------- 3. 在节点内写 containerd 的 hosts.toml,指向 Harbor 容器,声明 HTTP ----------
 # 注意:harbor.cicd.local 在 cicd-net 内会解析到 Harbor 的 nginx 容器名。
